@@ -53,7 +53,7 @@ $arg6 = trim($argv[6]);
 $arg7 = trim($argv[7]);
 $arg8 = trim($argv[8]);
 
-if ((empty($arg1) && file_exists('wallet.aro')) || $arg1 == 'help' || $arg1 == '-h' || $arg1 == '--help') {
+if ((empty($arg1) && file_exists('wallet.aro')) || $arg1 === 'help' || $arg1 === '-h' || $arg1 === '--help') {
     die("light-arionum-cli <command> <options>\n
 Commands:\n
 balance\t\t\t\tprints the balance of the wallet 
@@ -94,7 +94,7 @@ function base58_encode($string)
         return false;
     }
     // If the string is empty, then the encoded string is obviously empty
-    if (strlen($string) === 0) {
+    if ($string === '') {
         return '';
     }
     // Now we need to convert the byte array into an arbitrary-precision decimal
@@ -138,7 +138,7 @@ function base58_decode($base58)
         return false;
     }
     // If the string is empty, then the decoded string is obviously empty
-    if (strlen($base58) === 0) {
+    if ($base58 === '') {
         return '';
     }
     $indexes = array_flip(str_split($alphabet));
@@ -364,7 +364,7 @@ if (! file_exists('wallet.aro')) {
     echo "No ARO wallet found. Generating a new wallet!\n";
     $q = readline('Would you like to encrypt this wallet? (y/N) ');
     $encrypt = false;
-    if (substr(strtolower(trim($q)), 0, 1) == 'y') {
+    if (strpos(strtolower(trim($q)), 'y') === 0) {
         do {
             $pass = readPasswordSilently('Password:');
             if (strlen($pass) < 8) {
@@ -372,7 +372,7 @@ if (! file_exists('wallet.aro')) {
                 continue;
             }
             $pass2 = readPasswordSilently('Confirm Password:');
-            if ($pass == $pass2) {
+            if ($pass === $pass2) {
                 break;
             } else {
                 echo "The passwords did not match!\n";
@@ -417,7 +417,7 @@ if (! file_exists('wallet.aro')) {
     echo "Your Private Key is: $private_key\n";
 } else {
     $wallet = trim(file_get_contents('wallet.aro'));
-    if (substr($wallet, 0, 7) != 'arionum') {
+    if (strpos($wallet, 'arionum') !== 0) {
         echo "This wallet is encrypted.\n";
         do {
             $pass = readPasswordSilently('Password:');
@@ -429,7 +429,7 @@ if (! file_exists('wallet.aro')) {
             $password = substr(hash('sha256', $pass, true), 0, 32);
             $decrypted = openssl_decrypt(base64_decode($enc), 'aes-256-cbc', $password, OPENSSL_RAW_DATA, $iv);
 
-            if (substr($decrypted, 0, 7) == 'arionum') {
+            if (strpos($decrypted, 'arionum') === 0) {
                 $wallet = $decrypted;
                 break;
             }
@@ -495,7 +495,7 @@ if ($arg1 == 'balance') {
             continue;
         }
         $pass2 = readPasswordSilently('Confirm Password:');
-        if ($pass == $pass2) {
+        if ($pass === $pass2) {
             break;
         } else {
             echo "The passwords did not match!\n";
@@ -682,20 +682,20 @@ if ($arg1 == 'balance') {
     } else {
         echo "Masternode command sent! Transaction id: $res[data]\n";
     }
-} elseif (strtolower($arg1) == 'asset') {
+} elseif (strtolower($arg1) === 'asset') {
     if (empty($arg2)) {
         die('ERROR: Invalid asset command');
     }
-    if ($arg2 == 'create') {
-        $max_supply = intval($arg3);
-        $tradable = (strtolower($arg4) == 'yes' ? 1 : 0);
+    if ($arg2 === 'create') {
+        $max_supply = (int) $arg3;
+        $tradable = (strtolower($arg4) === 'yes' ? 1 : 0);
         $price = number_format($arg5, 8, '.', '');
-        $dividend_only = (strtolower($arg6) == 'yes' ? 1 : 0);
-        $auto_divident = (strtolower($arg7) == 'yes' ? 1 : 0);
-        $allow_bid = (strtolower($arg8) == 'yes' ? 1 : 0);
+        $dividend_only = (strtolower($arg6) === 'yes' ? 1 : 0);
+        $auto_divident = (strtolower($arg7) === 'yes' ? 1 : 0);
+        $allow_bid = (strtolower($arg8) === 'yes' ? 1 : 0);
         $asset = json_encode([$max_supply, $tradable, $price, $dividend_only, $auto_divident, $allow_bid]);
         standard_transaction($address, 100, 50, $asset);
-    } elseif ($arg2 == 'send') {
+    } elseif ($arg2 === 'send') {
         if (empty($arg3)) {
             die('ERROR: Invalid asset id');
         }
@@ -707,7 +707,7 @@ if ($arg1 == 'balance') {
         }
         $asset = json_encode([$arg3, $arg5]);
         standard_transaction($arg4, 0.00000001, 51, $asset);
-    } elseif ($arg2 == 'market') {
+    } elseif ($arg2 === 'market') {
         if (empty($arg3)) {
             die('ERROR: Invalid asset id');
         }
@@ -717,31 +717,31 @@ if ($arg1 == 'balance') {
         if ($arg5 <= 0) {
             die('ERROR: Invalid asset amount');
         }
-        $cancelable = (strtolower($arg6) == 'yes' ? 1 : 0);
+        $cancelable = (strtolower($arg6) === 'yes' ? 1 : 0);
         if ($arg7 != 'bid' && $arg7 != 'ask') {
             die('ERROR: Invalid order type');
         }
         $asset = json_encode([$arg3, $arg4, $arg5, $cancelable, $arg7]);
 
         standard_transaction($address, 0.00000001, 52, $asset);
-    } elseif ($arg2 == 'cancel-order') {
+    } elseif ($arg2 === 'cancel-order') {
         if (empty($arg3)) {
             die('ERROR: Invalid order id');
         }
         standard_transaction($address, 0.00000001, 53, $arg3);
-    } elseif ($arg2 == 'dividends') {
+    } elseif ($arg2 === 'dividends') {
         $val = number_format($arg3, 8, '.', '');
         if ($val < 0.00000001) {
             die('ERROR: Invalid amount');
         }
 
         standard_transaction($address, $val, 54, '');
-    } elseif ($arg2 == 'inflate') {
+    } elseif ($arg2 === 'inflate') {
         if ($arg3 <= 0) {
             die('ERROR: Invalid asset amount');
         }
         standard_transaction($address, 0.00000001, 55, $arg3);
-    } elseif ($arg2 == 'balance') {
+    } elseif ($arg2 === 'balance') {
         $res = peer_post('/api.php?q=assetBalance', ['account' => $address]);
         foreach ($res['data'] as $x) {
             $alias = ($x['alias'] ? $x['alias'] : $x['asset']);
