@@ -84,93 +84,94 @@ asset balance\t\t\t\t\t\t\t\t\t\t shows all assets
 ");
 }
 
- // Base58 encoding/decoding functions - all credits go to https://github.com/stephen-hill/base58php
-    function base58_encode($string)
-    {
-        $alphabet = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-        $base = strlen($alphabet);
-        // Type validation
-        if (is_string($string) === false) {
+// Base58 encoding/decoding functions - all credits go to https://github.com/stephen-hill/base58php
+function base58_encode($string)
+{
+    $alphabet = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+    $base = strlen($alphabet);
+    // Type validation
+    if (is_string($string) === false) {
+        return false;
+    }
+    // If the string is empty, then the encoded string is obviously empty
+    if (strlen($string) === 0) {
+        return '';
+    }
+    // Now we need to convert the byte array into an arbitrary-precision decimal
+    // We basically do this by performing a base256 to base10 conversion
+    $hex = unpack('H*', $string);
+    $hex = reset($hex);
+    $decimal = gmp_init($hex, 16);
+    // This loop now performs base 10 to base 58 conversion
+    // The remainder or modulo on each loop becomes a base 58 character
+    $output = '';
+    while (gmp_cmp($decimal, $base) >= 0) {
+        [$decimal, $mod] = gmp_div_qr($decimal, $base);
+        $output .= $alphabet[gmp_intval($mod)];
+    }
+    // If there's still a remainder, append it
+    if (gmp_cmp($decimal, 0) > 0) {
+        $output .= $alphabet[gmp_intval($decimal)];
+    }
+    // Now we need to reverse the encoded data
+    $output = strrev($output);
+    // Now we need to add leading zeros
+    $bytes = str_split($string);
+    foreach ($bytes as $byte) {
+        if ($byte === "\x00") {
+            $output = $alphabet[0].$output;
+            continue;
+        }
+        break;
+    }
+
+    return (string) $output;
+}
+
+function base58_decode($base58)
+{
+    $alphabet = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+    $base = strlen($alphabet);
+
+    // Type Validation
+    if (is_string($base58) === false) {
+        return false;
+    }
+    // If the string is empty, then the decoded string is obviously empty
+    if (strlen($base58) === 0) {
+        return '';
+    }
+    $indexes = array_flip(str_split($alphabet));
+    $chars = str_split($base58);
+    // Check for invalid characters in the supplied base58 string
+    foreach ($chars as $char) {
+        if (isset($indexes[$char]) === false) {
             return false;
         }
-        // If the string is empty, then the encoded string is obviously empty
-        if (strlen($string) === 0) {
-            return '';
-        }
-        // Now we need to convert the byte array into an arbitrary-precision decimal
-        // We basically do this by performing a base256 to base10 conversion
-        $hex = unpack('H*', $string);
-        $hex = reset($hex);
-        $decimal = gmp_init($hex, 16);
-        // This loop now performs base 10 to base 58 conversion
-        // The remainder or modulo on each loop becomes a base 58 character
-        $output = '';
-        while (gmp_cmp($decimal, $base) >= 0) {
-            [$decimal, $mod] = gmp_div_qr($decimal, $base);
-            $output .= $alphabet[gmp_intval($mod)];
-        }
-        // If there's still a remainder, append it
-        if (gmp_cmp($decimal, 0) > 0) {
-            $output .= $alphabet[gmp_intval($decimal)];
-        }
-        // Now we need to reverse the encoded data
-        $output = strrev($output);
-        // Now we need to add leading zeros
-        $bytes = str_split($string);
-        foreach ($bytes as $byte) {
-            if ($byte === "\x00") {
-                $output = $alphabet[0].$output;
-                continue;
-            }
-            break;
-        }
-
-        return (string) $output;
     }
-    function base58_decode($base58)
-    {
-        $alphabet = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-        $base = strlen($alphabet);
-
-        // Type Validation
-        if (is_string($base58) === false) {
-            return false;
-        }
-        // If the string is empty, then the decoded string is obviously empty
-        if (strlen($base58) === 0) {
-            return '';
-        }
-        $indexes = array_flip(str_split($alphabet));
-        $chars = str_split($base58);
-        // Check for invalid characters in the supplied base58 string
-        foreach ($chars as $char) {
-            if (isset($indexes[$char]) === false) {
-                return false;
-            }
-        }
-        // Convert from base58 to base10
-        $decimal = gmp_init($indexes[$chars[0]], 10);
-        for ($i = 1, $l = count($chars); $i < $l; $i++) {
-            $decimal = gmp_mul($decimal, $base);
-            $decimal = gmp_add($decimal, $indexes[$chars[$i]]);
-        }
-        // Convert from base10 to base256 (8-bit byte array)
-        $output = '';
-        while (gmp_cmp($decimal, 0) > 0) {
-            [$decimal, $byte] = gmp_div_qr($decimal, 256);
-            $output = pack('C', gmp_intval($byte)).$output;
-        }
-        // Now we need to add leading zeros
-        foreach ($chars as $char) {
-            if ($indexes[$char] === 0) {
-                $output = "\x00".$output;
-                continue;
-            }
-            break;
-        }
-
-        return $output;
+    // Convert from base58 to base10
+    $decimal = gmp_init($indexes[$chars[0]], 10);
+    for ($i = 1, $l = count($chars); $i < $l; $i++) {
+        $decimal = gmp_mul($decimal, $base);
+        $decimal = gmp_add($decimal, $indexes[$chars[$i]]);
     }
+    // Convert from base10 to base256 (8-bit byte array)
+    $output = '';
+    while (gmp_cmp($decimal, 0) > 0) {
+        [$decimal, $byte] = gmp_div_qr($decimal, 256);
+        $output = pack('C', gmp_intval($byte)).$output;
+    }
+    // Now we need to add leading zeros
+    foreach ($chars as $char) {
+        if ($indexes[$char] === 0) {
+            $output = "\x00".$output;
+            continue;
+        }
+        break;
+    }
+
+    return $output;
+}
 
 function pem2coin($data)
 {
@@ -207,6 +208,7 @@ function coin2pem($data, $is_private_key = false)
 
     return "-----BEGIN PUBLIC KEY-----\n".$data."\n-----END PUBLIC KEY-----\n";
 }
+
 function ec_sign($data, $key)
 {
     $private_key = coin2pem($key, true);
@@ -269,14 +271,15 @@ function peer_post($url, $data = [])
     $postdata = http_build_query(
         [
             'data' => json_encode($data),
-            'coin'=>'arionum',
-            ]
+            'coin' => 'arionum',
+        ]
     );
 
-    $opts = ['http' => [
+    $opts = [
+        'http' => [
             'timeout' => '300',
-            'method'  => 'POST',
-            'header'  => 'Content-type: application/x-www-form-urlencoded',
+            'method' => 'POST',
+            'header' => 'Content-type: application/x-www-form-urlencoded',
             'content' => $postdata,
         ],
     ];
@@ -345,13 +348,16 @@ function standard_transaction($address, $val, $version, $msg)
 
     $signature = ec_sign($info, $private_key);
 
-    $res = peer_post('/api.php?q=send', ['dst'=>$address, 'val'=>$val, 'signature'=>$signature, 'public_key'=>$public_key, 'version'=>$version, 'message'=>$msg, 'date'=>$date]);
+    $res = peer_post('/api.php?q=send', [
+        'dst' => $address, 'val' => $val, 'signature' => $signature, 'public_key' => $public_key, 'version' => $version,
+        'message' => $msg, 'date' => $date,
+    ]);
 
     if ($res['status'] != 'ok') {
         die("ERROR: $res[data]\n");
-    } else {
-        echo "Transaction id: $res[data]\n";
     }
+
+    echo "Transaction id: $res[data]\n";
 }
 
 if (! file_exists('wallet.aro')) {
@@ -376,9 +382,9 @@ if (! file_exists('wallet.aro')) {
     }
 
     $args = [
-            'curve_name' => 'secp256k1',
-            'private_key_type' => OPENSSL_KEYTYPE_EC,
-        ];
+        'curve_name' => 'secp256k1',
+        'private_key_type' => OPENSSL_KEYTYPE_EC,
+    ];
 
     $key1 = openssl_pkey_new($args);
 
@@ -397,7 +403,8 @@ if (! file_exists('wallet.aro')) {
     if ($encrypt === true) {
         $password = substr(hash('sha256', $pass, true), 0, 32);
         $iv = random_bytes(16);
-        $wallet = base64_encode($iv.base64_encode(openssl_encrypt($wallet, 'aes-256-cbc', $password, OPENSSL_RAW_DATA, $iv)));
+        $wallet = base64_encode($iv.base64_encode(openssl_encrypt($wallet, 'aes-256-cbc', $password, OPENSSL_RAW_DATA,
+                $iv)));
     }
 
     $res = file_put_contents('wallet.aro', $wallet);
@@ -445,7 +452,7 @@ if ($arg1 == 'balance') {
         }
         $address = $arg2;
     }
-    $res = peer_post('/api.php?q=getPendingBalance', ['account'=>$address]);
+    $res = peer_post('/api.php?q=getPendingBalance', ['account' => $address]);
     if ($res['status'] != 'ok') {
         die("ERROR: $res[data]\n");
     } else {
@@ -455,7 +462,7 @@ if ($arg1 == 'balance') {
     echo "Your Public Key is: $public_key\n";
     echo "Your Private Key is: $private_key\n";
 } elseif ($arg1 == 'transactions') {
-    $res = peer_post('/api.php?q=getTransactions', ['account'=>$address]);
+    $res = peer_post('/api.php?q=getTransactions', ['account' => $address]);
     if ($res['status'] != 'ok') {
         die("ERROR: $res[data]\n");
     }
@@ -468,7 +475,7 @@ if ($arg1 == 'balance') {
     if ($res['status'] != 'ok') {
         die("ERROR: $res[data]\n");
     }
-    foreach ($res['data'] as $x=>$l) {
+    foreach ($res['data'] as $x => $l) {
         echo "$x = $l\n";
     }
 } elseif ($arg1 == 'decrypt') {
@@ -497,7 +504,8 @@ if ($arg1 == 'balance') {
     $wallet = "arionum:$private_key:$public_key";
     $password = substr(hash('sha256', $pass, true), 0, 32);
     $iv = random_bytes(16);
-    $wallet = base64_encode($iv.base64_encode(openssl_encrypt($wallet, 'aes-256-cbc', $password, OPENSSL_RAW_DATA, $iv)));
+    $wallet = base64_encode($iv.base64_encode(openssl_encrypt($wallet, 'aes-256-cbc', $password, OPENSSL_RAW_DATA,
+            $iv)));
     $res = file_put_contents('wallet.aro', $wallet);
     if ($res === false || $res < 30) {
         echo "Your Public Key is: $public_key\n";
@@ -505,11 +513,11 @@ if ($arg1 == 'balance') {
         die("Could not write the wallet file! Please check the permissions on the current directory and save a backup of the above keys.\n");
     }
 } elseif ($arg1 == 'transaction') {
-    $res = peer_post('/api.php?q=getTransaction', ['transaction'=>$arg2]);
+    $res = peer_post('/api.php?q=getTransaction', ['transaction' => $arg2]);
     if ($res['status'] != 'ok') {
         die("ERROR: $res[data]\n");
     }
-    foreach ($res['data'] as $x=>$l) {
+    foreach ($res['data'] as $x => $l) {
         echo "$x = $l\n";
     }
 } elseif ($arg1 == 'send') {
@@ -520,7 +528,7 @@ if ($arg1 == 'balance') {
         die('ERROR: Invalid sum');
     }
 
-    $res = peer_post('/api.php?q=getPendingBalance', ['account'=>$address]);
+    $res = peer_post('/api.php?q=getPendingBalance', ['account' => $address]);
     if ($res['status'] != 'ok') {
         die("ERROR: $res[data]\n");
     }
@@ -543,7 +551,10 @@ if ($arg1 == 'balance') {
     $info = $val.'-'.$fee.'-'.$arg2.'-'.$arg4.'-1-'.$public_key.'-'.$date;
     $signature = ec_sign($info, $private_key);
 
-    $res = peer_post('/api.php?q=send', ['dst'=>$arg2, 'val'=>$val, 'signature'=>$signature, 'public_key'=>$public_key, 'version'=>1, 'message'=>$arg4, 'date'=>$date]);
+    $res = peer_post('/api.php?q=send', [
+        'dst' => $arg2, 'val' => $val, 'signature' => $signature, 'public_key' => $public_key, 'version' => 1,
+        'message' => $arg4, 'date' => $date,
+    ]);
 
     if ($res['status'] != 'ok') {
         die("ERROR: $res[data]\n");
@@ -565,7 +576,7 @@ if ($arg1 == 'balance') {
         die('ERROR: Invalid destination alias! #WALLET');
     }
 
-    $res = peer_post('/api.php?q=getPendingBalance', ['account'=>$address]);
+    $res = peer_post('/api.php?q=getPendingBalance', ['account' => $address]);
     if ($res['status'] != 'ok') {
         die("ERROR: $res[data]\n");
     }
@@ -603,7 +614,10 @@ if ($arg1 == 'balance') {
 
     $signature = ec_sign($info, $private_key);
 
-    $res = peer_post('/api.php?q=send', ['dst'=>$dst, 'val'=>$val, 'signature'=>$signature, 'public_key'=>$public_key, 'version'=>$version, 'message'=>$msg, 'date'=>$date]);
+    $res = peer_post('/api.php?q=send', [
+        'dst' => $dst, 'val' => $val, 'signature' => $signature, 'public_key' => $public_key, 'version' => $version,
+        'message' => $msg, 'date' => $date,
+    ]);
 
     if ($res['status'] != 'ok') {
         die("ERROR: $res[data]\n");
@@ -640,7 +654,7 @@ if ($arg1 == 'balance') {
         }
     }
 
-    $res = peer_post('/api.php?q=getPendingBalance', ['account'=>$address]);
+    $res = peer_post('/api.php?q=getPendingBalance', ['account' => $address]);
     if ($res['status'] != 'ok') {
         die("ERROR: $res[data]\n");
     }
@@ -658,7 +672,10 @@ if ($arg1 == 'balance') {
 
     $signature = ec_sign($info, $private_key);
 
-    $res = peer_post('/api.php?q=send', ['dst'=>$address, 'val'=>$val, 'signature'=>$signature, 'public_key'=>$public_key, 'version'=>$version, 'message'=>$msg, 'date'=>$date]);
+    $res = peer_post('/api.php?q=send', [
+        'dst' => $address, 'val' => $val, 'signature' => $signature, 'public_key' => $public_key, 'version' => $version,
+        'message' => $msg, 'date' => $date,
+    ]);
 
     if ($res['status'] != 'ok') {
         die("ERROR: $res[data]\n");
@@ -725,7 +742,7 @@ if ($arg1 == 'balance') {
         }
         standard_transaction($address, 0.00000001, 55, $arg3);
     } elseif ($arg2 == 'balance') {
-        $res = peer_post('/api.php?q=assetBalance', ['account'=>$address]);
+        $res = peer_post('/api.php?q=assetBalance', ['account' => $address]);
         foreach ($res['data'] as $x) {
             $alias = ($x['alias'] ? $x['alias'] : $x['asset']);
             echo "$alias\t\t\t$x[balance]\n";
