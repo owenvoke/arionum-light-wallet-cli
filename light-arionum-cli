@@ -27,34 +27,33 @@ OR OTHER DEALINGS IN THE SOFTWARE.
 
 error_reporting(0);
 
+if (! extension_loaded('openssl') && ! defined('OPENSSL_KEYTYPE_EC')) {
+    die('Openssl php extension missing');
+}
+if (! extension_loaded('gmp')) {
+    die('GMP php extension missing');
+}
+if (floatval(phpversion()) < 7.2) {
+    die('The minimum php version required is 7.2');
+}
 
-if (!extension_loaded("openssl") && !defined("OPENSSL_KEYTYPE_EC")) {
-    die("Openssl php extension missing");
-}
-if (!extension_loaded("gmp")) {
-    die("GMP php extension missing");
-}
-if (floatval(phpversion())<7.2) {
-    die("The minimum php version required is 7.2");
-}
-
-$localhost=false;
-$peer_debug=false;
-$testnet=false;
-if(file_exists(".testnet")){
+$localhost = false;
+$peer_debug = false;
+$testnet = false;
+if (file_exists('.testnet')) {
     echo "!!! Testnet !!!\n";
-    $testnet=true;
+    $testnet = true;
 }
-$arg1=trim($argv[1]);
-$arg2=trim($argv[2]);
-$arg3=trim($argv[3]);
-$arg4=trim($argv[4]);
-$arg5=trim($argv[5]);
-$arg6=trim($argv[6]);
-$arg7=trim($argv[7]);
-$arg8=trim($argv[8]);
+$arg1 = trim($argv[1]);
+$arg2 = trim($argv[2]);
+$arg3 = trim($argv[3]);
+$arg4 = trim($argv[4]);
+$arg5 = trim($argv[5]);
+$arg6 = trim($argv[6]);
+$arg7 = trim($argv[7]);
+$arg8 = trim($argv[8]);
 
-if ((empty($arg1)&&file_exists("wallet.aro"))||$arg1=="help"||$arg1=="-h"||$arg1=="--help") {
+if ((empty($arg1) && file_exists('wallet.aro')) || $arg1 == 'help' || $arg1 == '-h' || $arg1 == '--help') {
     die("light-arionum-cli <command> <options>\n
 Commands:\n
 balance\t\t\t\tprints the balance of the wallet 
@@ -88,8 +87,8 @@ asset balance\t\t\t\t\t\t\t\t\t\t shows all assets
  // Base58 encoding/decoding functions - all credits go to https://github.com/stephen-hill/base58php
     function base58_encode($string)
     {
-        $alphabet='123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-        $base=strlen($alphabet);
+        $alphabet = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+        $base = strlen($alphabet);
         // Type validation
         if (is_string($string) === false) {
             return false;
@@ -107,7 +106,7 @@ asset balance\t\t\t\t\t\t\t\t\t\t shows all assets
         // The remainder or modulo on each loop becomes a base 58 character
         $output = '';
         while (gmp_cmp($decimal, $base) >= 0) {
-            list($decimal, $mod) = gmp_div_qr($decimal, $base);
+            [$decimal, $mod] = gmp_div_qr($decimal, $base);
             $output .= $alphabet[gmp_intval($mod)];
         }
         // If there's still a remainder, append it
@@ -120,17 +119,18 @@ asset balance\t\t\t\t\t\t\t\t\t\t shows all assets
         $bytes = str_split($string);
         foreach ($bytes as $byte) {
             if ($byte === "\x00") {
-                $output = $alphabet[0] . $output;
+                $output = $alphabet[0].$output;
                 continue;
             }
             break;
         }
+
         return (string) $output;
     }
     function base58_decode($base58)
     {
-        $alphabet='123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-        $base=strlen($alphabet);
+        $alphabet = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+        $base = strlen($alphabet);
 
         // Type Validation
         if (is_string($base58) === false) {
@@ -157,143 +157,138 @@ asset balance\t\t\t\t\t\t\t\t\t\t shows all assets
         // Convert from base10 to base256 (8-bit byte array)
         $output = '';
         while (gmp_cmp($decimal, 0) > 0) {
-            list($decimal, $byte) = gmp_div_qr($decimal, 256);
-            $output = pack('C', gmp_intval($byte)) . $output;
+            [$decimal, $byte] = gmp_div_qr($decimal, 256);
+            $output = pack('C', gmp_intval($byte)).$output;
         }
         // Now we need to add leading zeros
         foreach ($chars as $char) {
             if ($indexes[$char] === 0) {
-                $output = "\x00" . $output;
+                $output = "\x00".$output;
                 continue;
             }
             break;
         }
+
         return $output;
     }
 
-
 function pem2coin($data)
 {
-    $data=str_replace("-----BEGIN PUBLIC KEY-----", "", $data);
-    $data=str_replace("-----END PUBLIC KEY-----", "", $data);
-    $data=str_replace("-----BEGIN EC PRIVATE KEY-----", "", $data);
-    $data=str_replace("-----END EC PRIVATE KEY-----", "", $data);
-    $data=str_replace("\n", "", $data);
-    $data=base64_decode($data);
+    $data = str_replace('-----BEGIN PUBLIC KEY-----', '', $data);
+    $data = str_replace('-----END PUBLIC KEY-----', '', $data);
+    $data = str_replace('-----BEGIN EC PRIVATE KEY-----', '', $data);
+    $data = str_replace('-----END EC PRIVATE KEY-----', '', $data);
+    $data = str_replace("\n", '', $data);
+    $data = base64_decode($data);
+
     return base58_encode($data);
 }
 
 function get_address($hash)
 {
-    for ($i=0;$i<9;$i++) {
-        $hash=hash('sha512', $hash, true);
+    for ($i = 0; $i < 9; $i++) {
+        $hash = hash('sha512', $hash, true);
     }
+
     return base58_encode($hash);
 }
 
-
-function coin2pem($data, $is_private_key=false)
+function coin2pem($data, $is_private_key = false)
 {
-    $data=base58_decode($data);
-    $data=base64_encode($data);
+    $data = base58_decode($data);
+    $data = base64_encode($data);
 
-    $dat=str_split($data, 64);
-    $data=implode("\n", $dat);
+    $dat = str_split($data, 64);
+    $data = implode("\n", $dat);
 
     if ($is_private_key) {
         return "-----BEGIN EC PRIVATE KEY-----\n".$data."\n-----END EC PRIVATE KEY-----\n";
     }
+
     return "-----BEGIN PUBLIC KEY-----\n".$data."\n-----END PUBLIC KEY-----\n";
 }
 function ec_sign($data, $key)
 {
-    $private_key=coin2pem($key, true);
-   
-   
-    $pkey=openssl_pkey_get_private($private_key);
-  
-    $k=openssl_pkey_get_details($pkey);
+    $private_key = coin2pem($key, true);
 
+    $pkey = openssl_pkey_get_private($private_key);
+
+    $k = openssl_pkey_get_details($pkey);
 
     openssl_sign($data, $signature, $pkey, OPENSSL_ALGO_SHA256);
-  
-    
-    
+
     return base58_encode($signature);
 }
 
-
 function ec_verify($data, $signature, $key)
 {
-    $public_key=coin2pem($key);
-   
-    $signature=base58_decode($signature);
-    
-    $pkey=openssl_pkey_get_public($public_key);
-  
-    $res=openssl_verify($data, $signature, $pkey, OPENSSL_ALGO_SHA256);
-  
- 
-    if ($res===1) {
+    $public_key = coin2pem($key);
+
+    $signature = base58_decode($signature);
+
+    $pkey = openssl_pkey_get_public($public_key);
+
+    $res = openssl_verify($data, $signature, $pkey, OPENSSL_ALGO_SHA256);
+
+    if ($res === 1) {
         return true;
     }
+
     return false;
 }
 
-
-function peer_post($url, $data=array())
+function peer_post($url, $data = [])
 {
     global $localhost;
     global $peer_debug;
     global $testnet;
-    if (!$localhost) {
-        if($testnet){
-            $f=file("http://api.arionum.com/testnet.txt");
+    if (! $localhost) {
+        if ($testnet) {
+            $f = file('http://api.arionum.com/testnet.txt');
         } else {
-            $f=file("http://api.arionum.com/peers.txt");
+            $f = file('http://api.arionum.com/peers.txt');
         }
-        
+
         shuffle($f);
-    
+
         foreach ($f as $x) {
-            if (strlen(trim($x))>5) {
-                $peer=trim($x);
+            if (strlen(trim($x)) > 5) {
+                $peer = trim($x);
                 break;
             }
         }
-   
+
         if (empty($peer)) {
             return false;
         }
     } else {
-        $peer="http://127.0.0.1";
+        $peer = 'http://127.0.0.1';
     }
 
     echo "Using node: $peer\n";
     $postdata = http_build_query(
-        array(
+        [
             'data' => json_encode($data),
-            "coin"=>"arionum"
-            )
+            'coin'=>'arionum',
+            ]
     );
-    
-    $opts = array('http' =>
-        array(
-            'timeout' => "300",
+
+    $opts = ['http' => [
+            'timeout' => '300',
             'method'  => 'POST',
             'header'  => 'Content-type: application/x-www-form-urlencoded',
-            'content' => $postdata
-        )
-    );
-    
-    $context  = stream_context_create($opts);
-    
+            'content' => $postdata,
+        ],
+    ];
+
+    $context = stream_context_create($opts);
+
     $result = file_get_contents($peer.$url, false, $context);
-    if($peer_debug){
-      
+    if ($peer_debug) {
         echo "\n$result\n";
     }
-    $res=json_decode($result, true);
+    $res = json_decode($result, true);
+
     return $res;
 }
 
@@ -303,8 +298,8 @@ function readPasswordSilently(string $prompt = ''): string
         $password = rtrim(
             shell_exec(
                 "/usr/bin/env bash -c 'read -rs -p \""
-                . addslashes($prompt)
-                . "\" mypassword && echo \$mypassword'"
+                .addslashes($prompt)
+                ."\" mypassword && echo \$mypassword'"
             )
         );
         echo PHP_EOL;
@@ -312,7 +307,7 @@ function readPasswordSilently(string $prompt = ''): string
         /**
          * Can't invoke bash or shell_exec is disabled, let's do it with a regular input instead.
          */
-        $password = readline($prompt . ' ');
+        $password = readline($prompt.' ');
     }
 
     return $password;
@@ -320,7 +315,7 @@ function readPasswordSilently(string $prompt = ''): string
 
 function checkSystemFunctionAvailability(string $function_name): bool
 {
-    return !in_array(
+    return ! in_array(
         $function_name,
         explode(',', ini_get('disable_functions'))
     );
@@ -331,424 +326,408 @@ function isAddressValid(string $address): bool
     return preg_match('/^[a-z0-9]+$/i', $address);
 }
 
-
-function standard_transaction($address, $val, $version, $msg){
- global $private_key, $public_key;
-    $fee=$val*0.0025;
-    if ($fee<0.00000001) {
-        $fee=0.00000001;
+function standard_transaction($address, $val, $version, $msg)
+{
+    global $private_key, $public_key;
+    $fee = $val * 0.0025;
+    if ($fee < 0.00000001) {
+        $fee = 0.00000001;
     }
-    if ($fee>10) {
-        $fee=10;
+    if ($fee > 10) {
+        $fee = 10;
     }
-        
-    $val=number_format($val, 8, ".", "");
-    $fee=number_format($fee, 8, ".", "");
 
-    $date=time();
-    $info=$val."-".$fee."-".$address."-".$msg."-$version-".$public_key."-".$date;
-       
-    $signature=ec_sign($info, $private_key);
-        
-    
-    $res=peer_post("/api.php?q=send", array("dst"=>$address,"val"=>$val, "signature"=>$signature, "public_key"=>$public_key, "version"=>$version, "message"=>$msg, "date"=>$date));
-    
-    if ($res['status']!="ok") {
+    $val = number_format($val, 8, '.', '');
+    $fee = number_format($fee, 8, '.', '');
+
+    $date = time();
+    $info = $val.'-'.$fee.'-'.$address.'-'.$msg."-$version-".$public_key.'-'.$date;
+
+    $signature = ec_sign($info, $private_key);
+
+    $res = peer_post('/api.php?q=send', ['dst'=>$address, 'val'=>$val, 'signature'=>$signature, 'public_key'=>$public_key, 'version'=>$version, 'message'=>$msg, 'date'=>$date]);
+
+    if ($res['status'] != 'ok') {
         die("ERROR: $res[data]\n");
     } else {
         echo "Transaction id: $res[data]\n";
     }
 }
 
-
-if (!file_exists("wallet.aro")) {
+if (! file_exists('wallet.aro')) {
     echo "No ARO wallet found. Generating a new wallet!\n";
-    $q=readline("Would you like to encrypt this wallet? (y/N) ");
-    $encrypt=false;
-    if (substr(strtolower(trim($q)), 0, 1)=="y") {
+    $q = readline('Would you like to encrypt this wallet? (y/N) ');
+    $encrypt = false;
+    if (substr(strtolower(trim($q)), 0, 1) == 'y') {
         do {
-            $pass=readPasswordSilently("Password:");
-            if (strlen($pass)<8) {
+            $pass = readPasswordSilently('Password:');
+            if (strlen($pass) < 8) {
                 echo "The password must be at least 8 characters long\n";
                 continue;
             }
-            $pass2=readPasswordSilently("Confirm Password:");
-            if ($pass==$pass2) {
+            $pass2 = readPasswordSilently('Confirm Password:');
+            if ($pass == $pass2) {
                 break;
             } else {
                 echo "The passwords did not match!\n";
             }
         } while (1);
-        $encrypt=true;
+        $encrypt = true;
     }
 
-    $args = array(
-            "curve_name" => "secp256k1",
-            "private_key_type" => OPENSSL_KEYTYPE_EC,
-        );
-        
-        
+    $args = [
+            'curve_name' => 'secp256k1',
+            'private_key_type' => OPENSSL_KEYTYPE_EC,
+        ];
+
     $key1 = openssl_pkey_new($args);
-        
-    openssl_pkey_export($key1, $pvkey);
-        
-    $private_key= pem2coin($pvkey);
-    
-    $pub = openssl_pkey_get_details($key1);
-        
-    $public_key= pem2coin($pub['key']);
 
-    $wallet="arionum:".$private_key.":".$public_key;
-    if (strlen($private_key)<20||strlen($public_key)<20) {
-        die("Could not generate the EC key pair. Please check the openssl binaries.");
+    openssl_pkey_export($key1, $pvkey);
+
+    $private_key = pem2coin($pvkey);
+
+    $pub = openssl_pkey_get_details($key1);
+
+    $public_key = pem2coin($pub['key']);
+
+    $wallet = 'arionum:'.$private_key.':'.$public_key;
+    if (strlen($private_key) < 20 || strlen($public_key) < 20) {
+        die('Could not generate the EC key pair. Please check the openssl binaries.');
     }
-    if ($encrypt===true) {
+    if ($encrypt === true) {
         $password = substr(hash('sha256', $pass, true), 0, 32);
-        $iv=random_bytes(16);
+        $iv = random_bytes(16);
         $wallet = base64_encode($iv.base64_encode(openssl_encrypt($wallet, 'aes-256-cbc', $password, OPENSSL_RAW_DATA, $iv)));
     }
 
-    $res=file_put_contents("wallet.aro", $wallet);
-    if ($res===false||$res<30) {
+    $res = file_put_contents('wallet.aro', $wallet);
+    if ($res === false || $res < 30) {
         die("Could not write the wallet file! Please check the permissions on the current directory.\n");
     }
-    $address=get_address($public_key);
-    echo "Your Address is: ".$address."\n";
+    $address = get_address($public_key);
+    echo 'Your Address is: '.$address."\n";
     echo "Your Public Key is: $public_key\n";
     echo "Your Private Key is: $private_key\n";
 } else {
-    $wallet=trim(file_get_contents("wallet.aro"));
-    if (substr($wallet, 0, 7)!="arionum") {
+    $wallet = trim(file_get_contents('wallet.aro'));
+    if (substr($wallet, 0, 7) != 'arionum') {
         echo "This wallet is encrypted.\n";
         do {
-            $pass=readPasswordSilently("Password:");
+            $pass = readPasswordSilently('Password:');
 
-            $w=base64_decode($wallet);
-            $iv=substr($w, 0, 16);
- 
+            $w = base64_decode($wallet);
+            $iv = substr($w, 0, 16);
 
-            $enc=substr($w, 16);
+            $enc = substr($w, 16);
             $password = substr(hash('sha256', $pass, true), 0, 32);
             $decrypted = openssl_decrypt(base64_decode($enc), 'aes-256-cbc', $password, OPENSSL_RAW_DATA, $iv);
-        
-            if (substr($decrypted, 0, 7)=="arionum") {
-                $wallet=$decrypted;
+
+            if (substr($decrypted, 0, 7) == 'arionum') {
+                $wallet = $decrypted;
                 break;
             }
             echo "Invalid password!\n";
         } while (1);
     }
-    $a=explode(":", $wallet);
-    $public_key=trim($a[2]);
-    $private_key=trim($a[1]);
+    $a = explode(':', $wallet);
+    $public_key = trim($a[2]);
+    $private_key = trim($a[1]);
 
-
-    $address=get_address($public_key);
-    echo "Your address is: ".$address."\n\n";
+    $address = get_address($public_key);
+    echo 'Your address is: '.$address."\n\n";
 }
 
-
-
-
-
-if ($arg1=="balance") {
-    if (!empty($arg2)) {
-        echo "Checking balance of the specified address: {$arg2}" . PHP_EOL;
-        if (!isAddressValid($arg2)) {
-            die("Error: invalid address format." . PHP_EOL);
+if ($arg1 == 'balance') {
+    if (! empty($arg2)) {
+        echo "Checking balance of the specified address: {$arg2}".PHP_EOL;
+        if (! isAddressValid($arg2)) {
+            die('Error: invalid address format.'.PHP_EOL);
         }
         $address = $arg2;
     }
-    $res=peer_post("/api.php?q=getPendingBalance", array("account"=>$address));
-    if ($res['status']!="ok") {
+    $res = peer_post('/api.php?q=getPendingBalance', ['account'=>$address]);
+    if ($res['status'] != 'ok') {
         die("ERROR: $res[data]\n");
     } else {
         echo "Balance: $res[data]\n";
     }
-} elseif ($arg1=="export") {
+} elseif ($arg1 == 'export') {
     echo "Your Public Key is: $public_key\n";
     echo "Your Private Key is: $private_key\n";
-} elseif ($arg1=="transactions") {
-    $res=peer_post("/api.php?q=getTransactions", array("account"=>$address));
-    if ($res['status']!="ok") {
+} elseif ($arg1 == 'transactions') {
+    $res = peer_post('/api.php?q=getTransactions', ['account'=>$address]);
+    if ($res['status'] != 'ok') {
         die("ERROR: $res[data]\n");
     }
     echo "ID\tTo\tType\tSum\n";
     foreach ($res['data'] as $x) {
         printf("%4s %4s %4s %4.f\n", $x['id'], $x['dst'], $x['type'], $x['val']);
     }
-} elseif ($arg1=="block") {
-    $res=peer_post("/api.php?q=currentBlock");
-    if ($res['status']!="ok") {
+} elseif ($arg1 == 'block') {
+    $res = peer_post('/api.php?q=currentBlock');
+    if ($res['status'] != 'ok') {
         die("ERROR: $res[data]\n");
     }
     foreach ($res['data'] as $x=>$l) {
         echo "$x = $l\n";
     }
-} elseif ($arg1=="decrypt") {
-    $wallet="arionum:$private_key:$public_key";
-    $res=file_put_contents("wallet.aro", $wallet);
-    if ($res===false||$res<30) {
+} elseif ($arg1 == 'decrypt') {
+    $wallet = "arionum:$private_key:$public_key";
+    $res = file_put_contents('wallet.aro', $wallet);
+    if ($res === false || $res < 30) {
         echo "Your Public Key is: $public_key\n";
         echo "Your Private Key is: $private_key\n";
         die("Could not write the wallet file! Please check the permissions on the current directory and save a backup of the above keys.\n");
     }
     echo "The wallet has been decrypted!\n";
-} elseif ($arg1=="encrypt") {
+} elseif ($arg1 == 'encrypt') {
     do {
-        $pass=readPasswordSilently("Password:");
-        if (strlen($pass)<8) {
+        $pass = readPasswordSilently('Password:');
+        if (strlen($pass) < 8) {
             echo "The password must be at least 8 characters long\n";
             continue;
         }
-        $pass2=readPasswordSilently("Confirm Password:");
-        if ($pass==$pass2) {
+        $pass2 = readPasswordSilently('Confirm Password:');
+        if ($pass == $pass2) {
             break;
         } else {
             echo "The passwords did not match!\n";
         }
     } while (1);
-    $wallet="arionum:$private_key:$public_key";
+    $wallet = "arionum:$private_key:$public_key";
     $password = substr(hash('sha256', $pass, true), 0, 32);
-    $iv=random_bytes(16);
+    $iv = random_bytes(16);
     $wallet = base64_encode($iv.base64_encode(openssl_encrypt($wallet, 'aes-256-cbc', $password, OPENSSL_RAW_DATA, $iv)));
-    $res=file_put_contents("wallet.aro", $wallet);
-    if ($res===false||$res<30) {
+    $res = file_put_contents('wallet.aro', $wallet);
+    if ($res === false || $res < 30) {
         echo "Your Public Key is: $public_key\n";
         echo "Your Private Key is: $private_key\n";
         die("Could not write the wallet file! Please check the permissions on the current directory and save a backup of the above keys.\n");
     }
-} elseif ($arg1=="transaction") {
-    $res=peer_post("/api.php?q=getTransaction", array("transaction"=>$arg2));
-    if ($res['status']!="ok") {
+} elseif ($arg1 == 'transaction') {
+    $res = peer_post('/api.php?q=getTransaction', ['transaction'=>$arg2]);
+    if ($res['status'] != 'ok') {
         die("ERROR: $res[data]\n");
     }
     foreach ($res['data'] as $x=>$l) {
         echo "$x = $l\n";
     }
-} elseif ($arg1=='send') {
+} elseif ($arg1 == 'send') {
     if (empty($arg2)) {
-        die("ERROR: Invalid destination address");
+        die('ERROR: Invalid destination address');
     }
     if (empty($arg3)) {
-        die("ERROR: Invalid sum");
+        die('ERROR: Invalid sum');
     }
 
-    $res=peer_post("/api.php?q=getPendingBalance", array("account"=>$address));
-    if ($res['status']!="ok") {
+    $res = peer_post('/api.php?q=getPendingBalance', ['account'=>$address]);
+    if ($res['status'] != 'ok') {
         die("ERROR: $res[data]\n");
     }
-    $balance=$res['data'];
-    $fee=$arg3*0.0025;
-    if ($fee<0.00000001) {
-        $fee=0.00000001;
+    $balance = $res['data'];
+    $fee = $arg3 * 0.0025;
+    if ($fee < 0.00000001) {
+        $fee = 0.00000001;
     }
-    if ($fee>10) {
-        $fee=10;
+    if ($fee > 10) {
+        $fee = 10;
     }
-    $total=$arg3+$fee;
-    
-    $val=number_format($arg3, 8, ".", "");
-    $fee=number_format($fee, 8, ".", "");
-    if ($balance<$total) {
+    $total = $arg3 + $fee;
+
+    $val = number_format($arg3, 8, '.', '');
+    $fee = number_format($fee, 8, '.', '');
+    if ($balance < $total) {
         die("ERROR: Not enough funds in balance\n");
     }
-    $date=time();
-    $info=$val."-".$fee."-".$arg2."-".$arg4."-1-".$public_key."-".$date;
-    $signature=ec_sign($info, $private_key);
-    
+    $date = time();
+    $info = $val.'-'.$fee.'-'.$arg2.'-'.$arg4.'-1-'.$public_key.'-'.$date;
+    $signature = ec_sign($info, $private_key);
 
-    $res=peer_post("/api.php?q=send", array("dst"=>$arg2,"val"=>$val, "signature"=>$signature, "public_key"=>$public_key, "version"=>1, "message"=>$arg4, "date"=>$date));
+    $res = peer_post('/api.php?q=send', ['dst'=>$arg2, 'val'=>$val, 'signature'=>$signature, 'public_key'=>$public_key, 'version'=>1, 'message'=>$arg4, 'date'=>$date]);
 
-    if ($res['status']!="ok") {
+    if ($res['status'] != 'ok') {
         die("ERROR: $res[data]\n");
     } else {
         echo "Transaction sent! Transaction id: $res[data]\n";
     }
-} elseif (strtolower($arg1)=='alias') {
-    if (empty($arg4)&&$arg2=="send") {
-        die("ERROR: Invalid sum");
+} elseif (strtolower($arg1) == 'alias') {
+    if (empty($arg4) && $arg2 == 'send') {
+        die('ERROR: Invalid sum');
     }
-
 
     if (empty($arg3)) {
-        die("ERROR: Invalid destination alias");
+        die('ERROR: Invalid destination alias');
     }
 
-
-    $arg3=preg_replace("/[^a-zA-Z0-9]/", "", $arg3);
-    $arg3=strtoupper($arg3);
-    if (strlen($arg3)<4||strlen($arg3)>25) {
-        die("ERROR: Invalid destination alias! #WALLET");
+    $arg3 = preg_replace('/[^a-zA-Z0-9]/', '', $arg3);
+    $arg3 = strtoupper($arg3);
+    if (strlen($arg3) < 4 || strlen($arg3) > 25) {
+        die('ERROR: Invalid destination alias! #WALLET');
     }
 
-    $res=peer_post("/api.php?q=getPendingBalance", array("account"=>$address));
-    if ($res['status']!="ok") {
+    $res = peer_post('/api.php?q=getPendingBalance', ['account'=>$address]);
+    if ($res['status'] != 'ok') {
         die("ERROR: $res[data]\n");
     }
-    $balance=$res['data'];
-    $fee=$arg4*0.0025;
-    if ($fee<0.00000001) {
-        $fee=0.00000001;
+    $balance = $res['data'];
+    $fee = $arg4 * 0.0025;
+    if ($fee < 0.00000001) {
+        $fee = 0.00000001;
     }
-    if ($fee>10) {
-        $fee=10;
+    if ($fee > 10) {
+        $fee = 10;
     }
-    if ($arg2=="set") {
-        $fee=10;
-        $arg4=0.00000001;
+    if ($arg2 == 'set') {
+        $fee = 10;
+        $arg4 = 0.00000001;
     }
-    $total=$arg4+$fee;
-    
-    $val=number_format($arg4, 8, ".", "");
-    $fee=number_format($fee, 8, ".", "");
-    if ($balance<$total) {
+    $total = $arg4 + $fee;
+
+    $val = number_format($arg4, 8, '.', '');
+    $fee = number_format($fee, 8, '.', '');
+    if ($balance < $total) {
         die("ERROR: Not enough funds in balance\n");
     }
-    $date=time();
-    if ($arg2=="set") {
-        $dst=$address;
-        $msg=$arg3;
-        $version=3;
+    $date = time();
+    if ($arg2 == 'set') {
+        $dst = $address;
+        $msg = $arg3;
+        $version = 3;
     } else {
-        $msg=$arg5;
-        $dst=$arg3;
-        $version=2;
+        $msg = $arg5;
+        $dst = $arg3;
+        $version = 2;
     }
-    
-    $info=$val."-".$fee."-".$dst."-".$msg."-".$version."-".$public_key."-".$date;
-    
-    $signature=ec_sign($info, $private_key);
 
+    $info = $val.'-'.$fee.'-'.$dst.'-'.$msg.'-'.$version.'-'.$public_key.'-'.$date;
 
+    $signature = ec_sign($info, $private_key);
 
-    $res=peer_post("/api.php?q=send", array("dst"=>$dst,"val"=>$val, "signature"=>$signature, "public_key"=>$public_key, "version"=>$version, "message"=>$msg, "date"=>$date));
+    $res = peer_post('/api.php?q=send', ['dst'=>$dst, 'val'=>$val, 'signature'=>$signature, 'public_key'=>$public_key, 'version'=>$version, 'message'=>$msg, 'date'=>$date]);
 
-    if ($res['status']!="ok") {
+    if ($res['status'] != 'ok') {
         die("ERROR: $res[data]\n");
     } else {
         echo "Transaction sent! Transaction id: $res[data]\n";
     }
-} elseif (strtolower($arg1)=='masternode') {
+} elseif (strtolower($arg1) == 'masternode') {
     if (empty($arg2)) {
-        die("ERROR: Invalid masternode command");
+        die('ERROR: Invalid masternode command');
     }
-        
-    $msg="";
-    if ($arg2=="create") {
-        $val=100000;
-        $fee=10;
-        $version=100;
-        $arg3=preg_replace("/[^0-9\.]/", "", $arg3);
-        
-        if (!filter_var($arg3, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE|FILTER_FLAG_NO_RES_RANGE)) {
+
+    $msg = '';
+    if ($arg2 == 'create') {
+        $val = 100000;
+        $fee = 10;
+        $version = 100;
+        $arg3 = preg_replace("/[^0-9\.]/", '', $arg3);
+
+        if (! filter_var($arg3, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
             die("ERROR: Invalid IP - $arg3");
         }
-        $msg=$arg3;
+        $msg = $arg3;
     } else {
-        $val=0.00000001;
-        $fee=0.00000001;
-        if ($arg2=="pause") {
-            $version=101;
-        } elseif ($arg2=="resume") {
-            $version=102;
-        } elseif ($arg2=="release") {
-            $version=103;
+        $val = 0.00000001;
+        $fee = 0.00000001;
+        if ($arg2 == 'pause') {
+            $version = 101;
+        } elseif ($arg2 == 'resume') {
+            $version = 102;
+        } elseif ($arg2 == 'release') {
+            $version = 103;
         } else {
-            die("ERROR: Invalid masternode command");
+            die('ERROR: Invalid masternode command');
         }
     }
 
-    $res=peer_post("/api.php?q=getPendingBalance", array("account"=>$address));
-    if ($res['status']!="ok") {
+    $res = peer_post('/api.php?q=getPendingBalance', ['account'=>$address]);
+    if ($res['status'] != 'ok') {
         die("ERROR: $res[data]\n");
     }
-    $balance=$res['data'];
-        
-    $total=$val+$fee;
-        
-    $val=number_format($val, 8, ".", "");
-    $fee=number_format($fee, 8, ".", "");
-    if ($balance<$total) {
+    $balance = $res['data'];
+
+    $total = $val + $fee;
+
+    $val = number_format($val, 8, '.', '');
+    $fee = number_format($fee, 8, '.', '');
+    if ($balance < $total) {
         die("ERROR: Not enough funds in balance\n");
     }
-    $date=time();
-    $info=$val."-".$fee."-".$address."-".$msg."-$version-".$public_key."-".$date;
-       
-    $signature=ec_sign($info, $private_key);
-        
-    
-    $res=peer_post("/api.php?q=send", array("dst"=>$address,"val"=>$val, "signature"=>$signature, "public_key"=>$public_key, "version"=>$version, "message"=>$msg, "date"=>$date));
-    
-    if ($res['status']!="ok") {
+    $date = time();
+    $info = $val.'-'.$fee.'-'.$address.'-'.$msg."-$version-".$public_key.'-'.$date;
+
+    $signature = ec_sign($info, $private_key);
+
+    $res = peer_post('/api.php?q=send', ['dst'=>$address, 'val'=>$val, 'signature'=>$signature, 'public_key'=>$public_key, 'version'=>$version, 'message'=>$msg, 'date'=>$date]);
+
+    if ($res['status'] != 'ok') {
         die("ERROR: $res[data]\n");
     } else {
         echo "Masternode command sent! Transaction id: $res[data]\n";
     }
-} elseif (strtolower($arg1)=='asset') {
+} elseif (strtolower($arg1) == 'asset') {
     if (empty($arg2)) {
-        die("ERROR: Invalid asset command");
+        die('ERROR: Invalid asset command');
     }
-    if($arg2=="create"){
-        $max_supply=intval($arg3);
-        $tradable=(strtolower($arg4) == "yes" ? 1 : 0 );
-        $price=number_format($arg5, 8, '.', '');
-        $dividend_only=(strtolower($arg6) == "yes" ? 1 : 0 );
-        $auto_divident=(strtolower($arg7) == "yes" ? 1 : 0 );
-        $allow_bid=(strtolower($arg8) == "yes" ? 1 : 0 );
-        $asset=json_encode([$max_supply,$tradable,$price,$dividend_only,$auto_divident,$allow_bid]);
+    if ($arg2 == 'create') {
+        $max_supply = intval($arg3);
+        $tradable = (strtolower($arg4) == 'yes' ? 1 : 0);
+        $price = number_format($arg5, 8, '.', '');
+        $dividend_only = (strtolower($arg6) == 'yes' ? 1 : 0);
+        $auto_divident = (strtolower($arg7) == 'yes' ? 1 : 0);
+        $allow_bid = (strtolower($arg8) == 'yes' ? 1 : 0);
+        $asset = json_encode([$max_supply, $tradable, $price, $dividend_only, $auto_divident, $allow_bid]);
         standard_transaction($address, 100, 50, $asset);
-
-    } elseif($arg2=="send"){
-        if(empty($arg3)){
-            die("ERROR: Invalid asset id");
+    } elseif ($arg2 == 'send') {
+        if (empty($arg3)) {
+            die('ERROR: Invalid asset id');
         }
-        if(empty($arg4)){
-            die("ERROR: Invalid asset destination");
+        if (empty($arg4)) {
+            die('ERROR: Invalid asset destination');
         }
-        if($arg5<=0){
-            die("ERROR: Invalid asset amount");
+        if ($arg5 <= 0) {
+            die('ERROR: Invalid asset amount');
         }
-        $asset=json_encode([$arg3,$arg5]);
+        $asset = json_encode([$arg3, $arg5]);
         standard_transaction($arg4, 0.00000001, 51, $asset);
-    } elseif($arg2=="market"){
-        if(empty($arg3)){
-            die("ERROR: Invalid asset id");
+    } elseif ($arg2 == 'market') {
+        if (empty($arg3)) {
+            die('ERROR: Invalid asset id');
         }
-        if($arg4<0.00000001){
-            die("ERROR: Invalid price");
+        if ($arg4 < 0.00000001) {
+            die('ERROR: Invalid price');
         }
-        if($arg5<=0){
-            die("ERROR: Invalid asset amount");
+        if ($arg5 <= 0) {
+            die('ERROR: Invalid asset amount');
         }
-        $cancelable=(strtolower($arg6) == "yes" ? 1 : 0 );
-        if($arg7!="bid"&&$arg7!="ask"){
-            die("ERROR: Invalid order type");
+        $cancelable = (strtolower($arg6) == 'yes' ? 1 : 0);
+        if ($arg7 != 'bid' && $arg7 != 'ask') {
+            die('ERROR: Invalid order type');
         }
-        $asset=json_encode([$arg3, $arg4,$arg5,$cancelable,$arg7]);
-        
+        $asset = json_encode([$arg3, $arg4, $arg5, $cancelable, $arg7]);
+
         standard_transaction($address, 0.00000001, 52, $asset);
-    } elseif($arg2=="cancel-order"){
-        if(empty($arg3)){
-            die("ERROR: Invalid order id");
+    } elseif ($arg2 == 'cancel-order') {
+        if (empty($arg3)) {
+            die('ERROR: Invalid order id');
         }
         standard_transaction($address, 0.00000001, 53, $arg3);
-    } elseif($arg2=="dividends"){
-        $val=number_format($arg3, 8, '.', '');
-        if($val<0.00000001){
-            die("ERROR: Invalid amount");
+    } elseif ($arg2 == 'dividends') {
+        $val = number_format($arg3, 8, '.', '');
+        if ($val < 0.00000001) {
+            die('ERROR: Invalid amount');
         }
 
         standard_transaction($address, $val, 54, '');
-    } elseif($arg2=="inflate"){
-        if($arg3<=0){
-            die("ERROR: Invalid asset amount");
+    } elseif ($arg2 == 'inflate') {
+        if ($arg3 <= 0) {
+            die('ERROR: Invalid asset amount');
         }
         standard_transaction($address, 0.00000001, 55, $arg3);
-    } elseif($arg2=="balance"){
-        $res=peer_post("/api.php?q=assetBalance",["account"=>$address]);
-        foreach($res['data'] as $x){
-            $alias=($x['alias'] ? $x['alias'] : $x['asset']);
+    } elseif ($arg2 == 'balance') {
+        $res = peer_post('/api.php?q=assetBalance', ['account'=>$address]);
+        foreach ($res['data'] as $x) {
+            $alias = ($x['alias'] ? $x['alias'] : $x['asset']);
             echo "$alias\t\t\t$x[balance]\n";
         }
     } else {
